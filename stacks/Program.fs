@@ -1,13 +1,14 @@
 ﻿type Token =
     | Integer of int
     | Symbol of string
+    | Definition of name: string option * tokens: Token list
     | Error of errorType: string * description: string
     
 type Stack = Token list
 
 let StackUnderFlow description = Error ("StackUnderFlow", description)
 
-(* Parser helpers *)
+(* Function helpers *)
 let oneArg (f: (Token -> Stack -> Stack)) (stack: Token list) =
     match stack with
     | [] -> StackUnderFlow "needs 1" :: stack
@@ -18,7 +19,7 @@ let twoArg f (stack: Token list) =
     | [] | [_] -> printfn "STACK UNDERFLOW; needs 2"; stack
     | x1 :: x2 :: xs -> f x1 x2 xs
 
-(* Parsers *)
+(* Functions *)
 let dup2 = oneArg (fun x xs -> x :: (x :: xs))
 let nop stack = stack
 let add = twoArg (fun x1 x2 xs ->
@@ -36,7 +37,20 @@ let sum (stack: Token list) =
             | (Integer i1, Integer i2) -> Integer (i1 + i2)
             | _ -> Symbol "error")
         |> List.singleton
+        
+let pop stack =
+    match stack with
+    | [] -> StackUnderFlow "needs 1 or more" :: stack
+    | x :: xs -> xs
+    
+let beginDef stack =
+    Definition (None, []) :: stack
+    
+let endDef stack =
+    stack
+    
 
+(* Parsing *)
 let split (splitChar: char) (str: string) = str.Split splitChar
 let tryParseInt str =
     match System.Int32.TryParse str with
@@ -54,31 +68,77 @@ let tee f x =
 let (|?) content str =
     tee (printfn str) content
     
+
+/// Peeks at stack, if error is found then output it then remove it
+let cleanErrors stack =
+    match stack with
+    | Error (errorType, description) :: xs ->
+        printfn "ERROR %s %s" errorType description
+        xs
+    | _ -> stack
     
-let getSymbolParser (symbol: string) =
-    printfn ">> %s" symbol
-    match symbol with
-    | "dup" -> dup2
-    | "add" -> add
-    | "sum" -> sum
-    | _ -> printfn "Unknown symbol %s" symbol; nop
+let parseSymbol (symbol: string) stack =
+    let parser = match symbol with
+                 | "dup" -> dup2
+                 | "add" -> add
+                 | "sum" -> sum
+                 | "pop" -> pop
+                 | ":" -> beginDef
+                 | ";" -> endDef
+                 | _ -> printfn "Unknown symbol %s" symbol; nop
+    parser stack
+    |> cleanErrors
     
 // parseToken : Token list -> Token -> Token list
 let parseToken stack token =
-    let parser = match token with
-                   | Integer i -> (fun stack -> Integer i :: stack)
-                   | Symbol s -> getSymbolParser s
-                   | Error (errorType, description) -> id
-    parser stack
+    printfn ">> %A" token
+    // If we have a definition on the stack, we're in "definition mode"
+    match stack with
+    | Definition (None, tokens) :: xs ->
+        match token with
+        | Symbol s -> Definition (Some(s), tokens) :: xs // set the definition's name
+        | _        -> printfn "Can't use definition name %A" token ; stack // unhandled name
+    | Definition (Some(name), tokens) :: xs ->
+        match token with
+        | Symbol ";" -> // Add definition to dict
+            printfn "Got definition %A" (List.head stack)
+            xs  
+        | _ -> // add token to tokens
+            Definition (Some(name), token :: tokens) :: xs 
+            
+    // ...otherwise, perform regular handling
+    | _ ->
+        match token with
+        | Integer i -> Integer i :: stack
+        | Definition (name, tokens) -> printfn "consider handling this case..."; stack
+        | Error (errorType, description) -> Error (errorType, description) :: stack
+        | Symbol s -> parseSymbol s stack
     |? ":: %A"
+        
+        
+    (* match List.tryHead stack with *)
+    (* | Some(Definition (None, tokens)) -> // set the definition's name *)
+    (*     match token with *)
+    (*     | Symbol s -> printfn "Setting name of definition"; Definition (Some(s), tokens) :: stack *)
+    (*     | _ -> printfn "Can't use definition name %A" token ; stack *)
+    (* | Some(Definition (Some(name), tokens)) -> // add token to the definitions list of tokens *)
+    (*     Definition (Some(name), token :: tokens) :: stack *)
+    (* | _ -> *)
+    (*     match token with *)
+    (*     | Integer i -> Integer i :: stack *)
+    (*     | Definition (name, tokens) -> printfn "consider handling this case..."; stack *)
+    (*     | Error (errorType, description) -> Error (errorType, description) :: stack *)
+    (*     | Symbol s -> parseSymbol s stack *)
+    (* |? ":: %A" *)
+    
+    (* ": square dup add;" *)
     
 [<EntryPoint>]
 let main argv = 
-    tokenize "sum 3"
+    tokenize ": square dup add ; 4 square"
     |> List.fold parseToken []
     |> printfn "%A"
     0 // return an integer exit code
-    
     
 (*
 

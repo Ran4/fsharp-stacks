@@ -1,0 +1,13 @@
+: square dup add ; 4 square 16 eq assert
+
+[3; 4]
+>> :
+[Def None []; 3; 4]
+>> square
+[Def Some("add") []; 3; 4]
+>> dup
+[Def Some("add") [Symbol "dup"]; 3; 4]
+>> add
+[Def Some("add") [Symbol "add"; Symbol "dup"]; 3; 4]
+>> ;
+[Def Some("add") [Symbol "add"; Symbol "dup"]; 3; 4]
