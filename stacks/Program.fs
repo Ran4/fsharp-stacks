@@ -114,24 +114,6 @@ let parseToken stack token =
         | Error (errorType, description) -> Error (errorType, description) :: stack
         | Symbol s -> parseSymbol s stack
     |? ":: %A"
-        
-        
-    (* match List.tryHead stack with *)
-    (* | Some(Definition (None, tokens)) -> // set the definition's name *)
-    (*     match token with *)
-    (*     | Symbol s -> printfn "Setting name of definition"; Definition (Some(s), tokens) :: stack *)
-    (*     | _ -> printfn "Can't use definition name %A" token ; stack *)
-    (* | Some(Definition (Some(name), tokens)) -> // add token to the definitions list of tokens *)
-    (*     Definition (Some(name), token :: tokens) :: stack *)
-    (* | _ -> *)
-    (*     match token with *)
-    (*     | Integer i -> Integer i :: stack *)
-    (*     | Definition (name, tokens) -> printfn "consider handling this case..."; stack *)
-    (*     | Error (errorType, description) -> Error (errorType, description) :: stack *)
-    (*     | Symbol s -> parseSymbol s stack *)
-    (* |? ":: %A" *)
-    
-    (* ": square dup add;" *)
     
 [<EntryPoint>]
 let main argv = 
